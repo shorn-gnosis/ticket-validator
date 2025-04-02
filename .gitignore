@@ -17,3 +17,20 @@ dist
 
 # llm files
 /memory-bank
+
+# Build outputs
+dist
+dist-ssr
+
+# Vite specific
+.vite/
+.vite_opt_cache/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
