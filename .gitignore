@@ -1,0 +1,19 @@
+# General exclusions (apply to all directories)
+node_modules
+dist
+.cache
+.DS_Store
+/contracts
+/contracts/*
+
+# Keep essential project files
+!package-lock.json
+!yarn.lock
+!pnpm-lock.yaml
+
+# Allow specific app folders
+!staff-app/
+!end-user-app/
+
+# llm files
+/memory-bank
