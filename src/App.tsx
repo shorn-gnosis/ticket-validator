@@ -9,7 +9,8 @@ declare global {
   }
 }
 
-const NFT_CONTRACT_ADDRESS = '0xa53A5773b9d4cE2cf5b42A7711239833b31ffc38';
+// const NFT_CONTRACT_ADDRESS = '0xa53A5773b9d4cE2cf5b42A7711239833b31ffc38'; // dappcon test
+const NFT_CONTRACT_ADDRESS = '0xaec11e3398667d41760db9d90af46119f8ee2f7d'; // my test
 
 // Interface for NFT details
 interface NFTDetails {
