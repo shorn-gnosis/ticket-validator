@@ -14,7 +14,6 @@ const NFT_CONTRACT_ADDRESS = '0xaec11e3398667d41760db9d90af46119f8ee2f7d'; // my
 
 // Interface for NFT details
 interface NFTDetails {
-  tokenId: number;
   contractName: string;
   eventName: string;
 }
@@ -69,7 +68,6 @@ function App() {
       }
 
       let isValid = false;
-      let foundTokenId = 0;
       let contractName = "";
       let eventName = "";
       
@@ -87,7 +85,6 @@ function App() {
       console.log(`Balance for ${walletAddress}: ${balance}`);
       isValid = balance > 0n;
       if (isValid) {
-        foundTokenId = 0;
         eventName = "Unlock Event";
       }
       
@@ -95,7 +92,6 @@ function App() {
       
       if (isValid) {
         setNftDetails({
-          tokenId: foundTokenId,
           contractName: contractName,
           eventName: eventName
         });
@@ -216,7 +212,6 @@ function App() {
             <h3>NFT Details</h3>
             <p>Contract Name: {nftDetails.contractName}</p>
             <p>Event Name: {nftDetails.eventName}</p>
-            {nftDetails.tokenId > 0 && <p>Token ID: {nftDetails.tokenId}</p>}
           </div>
         )}
       </div>
