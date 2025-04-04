@@ -81,7 +81,8 @@ function App() {
       }
       
       console.log(`Checking balance for ${walletAddress}`);
-      const balance = await contract.balanceOf(walletAddress);
+      const normalizedAddress = walletAddress.toLowerCase();
+      const balance = await contract.balanceOf(normalizedAddress);
       console.log(`Balance for ${walletAddress}: ${balance}`);
       isValid = balance > 0n;
       if (isValid) {
