@@ -15,9 +15,6 @@ dist
 !staff-app/
 !end-user-app/
 
-# llm files
-/memory-bank
-
 # Build outputs
 dist
 dist-ssr
