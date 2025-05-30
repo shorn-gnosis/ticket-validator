@@ -13,10 +13,19 @@ declare global {
 const NFT_CONTRACT_ADDRESS = import.meta.env.VITE_NFT_CONTRACT_ADDRESS || 
   '0x9340184741D938453bF66D77d551Cc04Ab2F4925'; // Fallback address for development
 
+// Expanded ABI with methods we need
+const CONTRACT_ABI = [
+  "function balanceOf(address owner) view returns (uint256)",
+  "function name() view returns (string)",
+  "function getHasValidKey(address) view returns (bool)",
+  "function keyExpirationTimestampFor(address) view returns (uint256)"
+];
+
 // Interface for NFT details
 interface NFTDetails {
   contractName: string;
   eventName: string;
+  keyExpiration?: string;
 }
 
 function App() {
@@ -27,71 +36,134 @@ function App() {
   const [showScanner, setShowScanner] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string | null>(null);
+  const [errorInfo, setErrorInfo] = useState<string | null>(null);
   
   // Function to handle validation
-
   const checkTicketValidity = async () => {
     setIsLoading(true);
     setIsValidTicket(null); // Reset status
+    setErrorInfo(null); // Reset error message
+    setDebugInfo(null); // Reset debug info
 
     if (!walletAddress) {
-        console.error("Wallet address missing");
-        setIsValidTicket(false);
-        setIsLoading(false);
-        return;
+      setErrorInfo("Wallet address missing");
+      setIsValidTicket(false);
+      setIsLoading(false);
+      return;
+    }
+
+    let normalizedAddress;
+    try {
+      normalizedAddress = ethers.getAddress(walletAddress);
+      if (debugMode) {
+        setDebugInfo(`Normalized address: ${normalizedAddress}`);
+      }
+    } catch (error) {
+      setErrorInfo("Invalid wallet address format");
+      setIsValidTicket(false);
+      setIsLoading(false);
+      return;
     }
 
     try {
-      // Use JsonRpcProvider for read-only operations (no wallet connection needed)
-      // This allows testing with any wallet address without connecting
-      const provider = window.ethereum 
-        ? new ethers.BrowserProvider(window.ethereum)
-        : new ethers.JsonRpcProvider("https://rpc.gnosischain.com");
+      // Always use JsonRpcProvider for more reliable connections to Gnosis Chain
+      const provider = new ethers.JsonRpcProvider("https://rpc.gnosischain.com");
       
-      console.log("Using provider:", provider.constructor.name);
+      if (debugMode) {
+        setDebugInfo(prev => `${prev || ''}\nConnecting to Gnosis Chain via JsonRpcProvider`);
+      }
+      
+      // Initialize contract with expanded ABI
       const contract = new ethers.Contract(
         NFT_CONTRACT_ADDRESS,
-        [
-          "function ownerOf(uint256 tokenId) view returns (address)",
-          "function balanceOf(address owner) view returns (uint256)",
-          "function name() view returns (string)",
-          "function symbol() view returns (string)",
-          "function tokenURI(uint256 tokenId) view returns (string)"
-        ],
+        CONTRACT_ABI,
         provider
       );
-      // Try to convert the address to checksummed format
-      // This will throw an error if the address is invalid
-      let checksummedAddress;
-      try {
-        checksummedAddress = ethers.getAddress(walletAddress);
-      } catch (error) {
-        console.error("Invalid wallet address format:", error);
-        setIsValidTicket(false);
-        setIsLoading(false);
-        return;
-      }
-
+      
       let isValid = false;
       let contractName = "";
-      let eventName = "";
+      let eventName = "Unlock Event";
+      let expirationTimestamp: string | undefined;
       
       // Try to get contract name
       try {
         contractName = await contract.name();
-        console.log(`Contract name: ${contractName}`);
+        if (debugMode) {
+          setDebugInfo(prev => `${prev || ''}\nContract name: ${contractName}`);
+        }
       } catch (nameError) {
         console.error("Error getting contract name:", nameError);
+        if (debugMode) {
+          setDebugInfo(prev => `${prev || ''}\nError getting contract name: ${(nameError as Error).message}`);
+        }
         contractName = "Unlock Protocol NFT";
       }
       
-      console.log(`Checking balance for ${walletAddress}`);
-      // Use the already declared checksummedAddress variable
-      const balance = await contract.balanceOf(checksummedAddress);
-      console.log(`Balance for ${walletAddress}: ${balance}`);
-      isValid = balance > 0n;
-      if (isValid) {
-        eventName = "Unlock Event";
+      // First try getHasValidKey if available (Unlock Protocol's preferred method)
+      try {
+        if (debugMode) {
+          setDebugInfo(prev => `${prev || ''}\nTrying getHasValidKey for ${normalizedAddress}`);
+        }
+        
+        isValid = await contract.getHasValidKey(normalizedAddress);
+        
+        if (debugMode) {
+          setDebugInfo(prev => `${prev || ''}\ngetHasValidKey result: ${isValid}`);
+        }
+        
+        // If valid, try to get expiration timestamp
+        if (isValid) {
+          try {
+            const expiration = await contract.keyExpirationTimestampFor(normalizedAddress);
+            const expirationDate = new Date(Number(expiration) * 1000);
+            expirationTimestamp = expirationDate.toLocaleString();
+            
+            if (debugMode) {
+              setDebugInfo(prev => `${prev || ''}\nKey expires: ${expirationTimestamp}`);
+            }
+          } catch (expError) {
+            console.error("Error getting expiration:", expError);
+            if (debugMode) {
+              setDebugInfo(prev => `${prev || ''}\nError getting expiration: ${(expError as Error).message}`);
+            }
+          }
+        }
+      } catch (validKeyError) {
+        console.error("Error checking getHasValidKey:", validKeyError);
+        
+        if (debugMode) {
+          setDebugInfo(prev => `${prev || ''}\ngetHasValidKey not available or error: ${(validKeyError as Error).message}`);
+          setDebugInfo(prev => `${prev || ''}\nFalling back to balanceOf check`);
+        }
+        
+        // Fall back to balance check if getHasValidKey is not available
+        try {
+          if (debugMode) {
+            setDebugInfo(prev => `${prev || ''}\nChecking balance for ${normalizedAddress}`);
+          }
+          
+          const balance = await contract.balanceOf(normalizedAddress);
+          
+          if (debugMode) {
+            setDebugInfo(prev => `${prev || ''}\nBalance: ${balance.toString()}`);
+          }
+          
+          isValid = balance > 0n;
+          
+          if (debugMode) {
+            setDebugInfo(prev => `${prev || ''}\nBalance check result: ${isValid}`);
+          }
+        } catch (balanceError) {
+          console.error("Error checking balance:", balanceError);
+          if (debugMode) {
+            setDebugInfo(prev => `${prev || ''}\nError checking balance: ${(balanceError as Error).message}`);
+          }
+          setErrorInfo(`Error checking ticket validity: ${(balanceError as Error).message}`);
+          setIsValidTicket(false);
+          setNftDetails(null);
+          setIsLoading(false);
+          return;
+        }
       }
       
       setIsValidTicket(isValid);
@@ -99,26 +171,34 @@ function App() {
       if (isValid) {
         setNftDetails({
           contractName: contractName,
-          eventName: eventName
+          eventName: eventName,
+          keyExpiration: expirationTimestamp
         });
       } else {
         setNftDetails(null);
       }
     } catch (providerError) {
-        console.error("Error initializing provider/contract or during owner check:", providerError);
-        setIsValidTicket(false);
+      console.error("Error initializing provider/contract:", providerError);
+      if (debugMode) {
+        setDebugInfo(prev => `${prev || ''}\nProvider/contract error: ${(providerError as Error).message}`);
+      }
+      setErrorInfo(`Error connecting to blockchain: ${(providerError as Error).message}`);
+      setIsValidTicket(false);
     } finally {
-        setIsLoading(false); // Ensure loading state is always reset
+      setIsLoading(false); // Ensure loading state is always reset
     }
   };
 
   const handleScan = (address: string) => {
     setWalletAddress(address);
     setShowScanner(false);
-    setDebugInfo(`Successfully extracted address: ${address}`);
+    if (debugMode) {
+      setDebugInfo(`Successfully extracted address: ${address}`);
+    }
     // Reset validation status when scanning a new address
     setIsValidTicket(null);
     setNftDetails(null);
+    setErrorInfo(null);
     // Don't automatically validate - let the user click the button
   };
   
@@ -195,6 +275,7 @@ function App() {
                 setIsValidTicket(null);
                 setNftDetails(null);
                 setDebugInfo(null);
+                setErrorInfo(null);
               }}
               disabled={isLoading || !walletAddress}
               className="reset-button"
@@ -205,14 +286,15 @@ function App() {
         </>
       )}
 
-      {isLoading && <p>Checking ticket validity...</p>}
-      {isValidTicket === true && <p className="valid">Valid Ticket!</p>}
-      {isValidTicket === false && <p className="invalid">No valid ticket found!</p>}
+      {isLoading && <p className="loading-message">Checking ticket validity...</p>}
+      {errorInfo && <p className="error-message">{errorInfo}</p>}
+      {isValidTicket === true && <p className="valid">✅ Valid Ticket!</p>}
+      {isValidTicket === false && !errorInfo && <p className="invalid">❌ Invalid Ticket!</p>}
       
       {debugMode && debugInfo && (
         <div className="debug-info">
           <h3>Debug Information</h3>
-          <p>{debugInfo}</p>
+          <pre>{debugInfo}</pre>
         </div>
       )}
       
@@ -226,6 +308,9 @@ function App() {
             <h3>NFT Details</h3>
             <p>Contract Name: {nftDetails.contractName}</p>
             <p>Event Name: {nftDetails.eventName}</p>
+            {nftDetails.keyExpiration && (
+              <p>Key Expires: {nftDetails.keyExpiration}</p>
+            )}
           </div>
         )}
       </div>
