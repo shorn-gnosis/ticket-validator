@@ -22,6 +22,8 @@ dist-ssr
 # Vite specific
 .vite/
 .vite_opt_cache/
+.env
+.env
 
 # Logs
 logs

@@ -9,8 +9,9 @@ declare global {
   }
 }
 
-//const NFT_CONTRACT_ADDRESS = '0xa53A5773b9d4cE2cf5b42A7711239833b31ffc38'; // dappcon test
-const NFT_CONTRACT_ADDRESS = '0x9340184741D938453bF66D77d551Cc04Ab2F4925'; // my test
+// Use environment variable with fallback for development/testing
+const NFT_CONTRACT_ADDRESS = import.meta.env.VITE_NFT_CONTRACT_ADDRESS || 
+  '0x9340184741D938453bF66D77d551Cc04Ab2F4925'; // Fallback address for development
 
 // Interface for NFT details
 interface NFTDetails {
@@ -59,12 +60,16 @@ function App() {
         ],
         provider
       );
-      // Validate the address format before making the call
-      if (!ethers.isAddress(walletAddress)) {
-          console.error("Invalid wallet address format");
-          setIsValidTicket(false);
-          setIsLoading(false);
-          return;
+      // Try to convert the address to checksummed format
+      // This will throw an error if the address is invalid
+      let checksummedAddress;
+      try {
+        checksummedAddress = ethers.getAddress(walletAddress);
+      } catch (error) {
+        console.error("Invalid wallet address format:", error);
+        setIsValidTicket(false);
+        setIsLoading(false);
+        return;
       }
 
       let isValid = false;
@@ -81,8 +86,8 @@ function App() {
       }
       
       console.log(`Checking balance for ${walletAddress}`);
-      const normalizedAddress = walletAddress.toLowerCase();
-      const balance = await contract.balanceOf(normalizedAddress);
+      // Use the already declared checksummedAddress variable
+      const balance = await contract.balanceOf(checksummedAddress);
       console.log(`Balance for ${walletAddress}: ${balance}`);
       isValid = balance > 0n;
       if (isValid) {
@@ -120,6 +125,13 @@ function App() {
   const handleCloseScanner = () => {
     setShowScanner(false);
     console.log('QR code scanning canceled');
+  };
+  
+  const handleOpenScanner = () => {
+    // Reset any previous errors
+    setDebugInfo(null);
+    setShowScanner(true);
+    console.log('Opening QR code scanner, requesting back camera access...');
   };
   
   // Function to toggle debug mode
@@ -171,7 +183,7 @@ function App() {
               {isLoading ? 'Checking...' : 'Validate Ticket'}
             </button>
             <button
-              onClick={() => setShowScanner(true)}
+              onClick={handleOpenScanner}
               disabled={isLoading}
               className="scan-button"
             >
@@ -195,7 +207,7 @@ function App() {
 
       {isLoading && <p>Checking ticket validity...</p>}
       {isValidTicket === true && <p className="valid">Valid Ticket!</p>}
-      {isValidTicket === false && <p className="invalid">Invalid Ticket!</p>}
+      {isValidTicket === false && <p className="invalid">No valid ticket found!</p>}
       
       {debugMode && debugInfo && (
         <div className="debug-info">
@@ -207,6 +219,7 @@ function App() {
       <div className="info-box">
         <h3>Contract Information</h3>
         <p>NFT Contract: {NFT_CONTRACT_ADDRESS}</p>
+        <p className="env-note">Using {import.meta.env.VITE_NFT_CONTRACT_ADDRESS ? 'custom' : 'default'} contract address</p>
         
         {nftDetails && (
           <div className="nft-details">

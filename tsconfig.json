@@ -18,7 +18,10 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    
+    /* Type checking for environment variables */
+    "typeRoots": ["./node_modules/@types", "./src"]
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

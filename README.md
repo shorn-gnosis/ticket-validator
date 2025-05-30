@@ -12,7 +12,8 @@ A simple web application to validate NFT tickets for events. This app allows eve
 
 ## Contract Information
 
-- NFT Contract Address: 0xa53A5773b9d4cE2cf5b42A7711239833b31ffc38
+The NFT contract address is configured through an environment variable:
+- `VITE_NFT_CONTRACT_ADDRESS`: Set in the `.env` file in the root directory
 
 ## Technology Stack
 
@@ -25,6 +26,10 @@ A simple web application to validate NFT tickets for events. This app allows eve
 ## Getting Started
 
 ```bash
+# Copy the example environment file and configure it
+cp .env.example .env
+# Edit .env to set your contract address
+
 # Install dependencies
 npm install
 
